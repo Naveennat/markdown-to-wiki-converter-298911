@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { convertMarkdownToWiki } from "./api/wikiApi";
+import { getApiBaseUrl } from "./api/client";
 
 function useDebouncedValue(value, delayMs) {
   const [debounced, setDebounced] = useState(value);
@@ -267,8 +268,10 @@ function App() {
 
         <footer className="footer">
           <div className="footerNote">
-            Backend URL:{" "}
-            <code className="inlineCode">{process.env.REACT_APP_API_BASE_URL ? "REACT_APP_API_BASE_URL" : "(using same-origin / proxy)"}</code>
+            Backend URL: <code className="inlineCode">{getApiBaseUrl()}</code>{" "}
+            <span className="statusMeta">
+              ({process.env.REACT_APP_API_BASE_URL ? "REACT_APP_API_BASE_URL" : "fallback"})
+            </span>
           </div>
         </footer>
       </div>

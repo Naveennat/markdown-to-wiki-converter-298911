@@ -1,17 +1,10 @@
+import { apiFetch } from "./client";
+
 const DEFAULT_TIMEOUT_MS = 30000;
 
 /**
- * Resolve the backend base URL.
- * - In dev, CRA proxy can be used (keep empty baseURL).
- * - In production, set REACT_APP_API_BASE_URL to point to backend.
- */
-function getApiBaseUrl() {
-  return (process.env.REACT_APP_API_BASE_URL || "").replace(/\/+$/, "");
-}
-
-/**
  * Attempt common backend endpoints to convert markdown to wiki.
- * The backend OpenAPI we could retrieve is minimal (health-check only), so we use a robust fallback strategy.
+ * The backend OpenAPI we can currently retrieve is minimal (health-check only), so we use a robust fallback strategy.
  */
 const CANDIDATE_ENDPOINTS = [
   // Common patterns
@@ -55,29 +48,6 @@ function extractWikiFromJson(json) {
   }
 }
 
-async function fetchWithTimeout(url, options, timeoutMs = DEFAULT_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-  // If a caller already provided a signal, we should abort when either aborts.
-  // We cannot "merge" signals directly, so we wire it manually.
-  if (options?.signal) {
-    const callerSignal = options.signal;
-    if (callerSignal.aborted) controller.abort();
-    else {
-      const onAbort = () => controller.abort();
-      callerSignal.addEventListener("abort", onAbort, { once: true });
-    }
-  }
-
-  try {
-    const res = await fetch(url, { ...options, signal: controller.signal });
-    return res;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
 // PUBLIC_INTERFACE
 export async function convertMarkdownToWiki(markdown, { signal } = {}) {
   /**
@@ -88,23 +58,17 @@ export async function convertMarkdownToWiki(markdown, { signal } = {}) {
    *
    * Returns: { wiki: string, endpointUsed: string }
    */
-  const baseUrl = getApiBaseUrl();
-
   let lastError = null;
 
   for (const candidate of CANDIDATE_ENDPOINTS) {
-    const url = `${baseUrl}${candidate.path}`;
     try {
-      const res = await fetchWithTimeout(
-        url,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ [candidate.bodyKey]: markdown }),
-          signal,
-        },
-        DEFAULT_TIMEOUT_MS
-      );
+      const res = await apiFetch(candidate.path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [candidate.bodyKey]: markdown }),
+        timeoutMs: DEFAULT_TIMEOUT_MS,
+        signal,
+      });
 
       if (!res.ok) {
         lastError = new Error(`HTTP ${res.status} from ${candidate.path}`);
@@ -129,6 +93,6 @@ export async function convertMarkdownToWiki(markdown, { signal } = {}) {
 
   const msg =
     lastError?.message ||
-    "Unable to reach conversion endpoint. Ensure REACT_APP_API_BASE_URL is set or CRA proxy is configured.";
+    "Unable to reach conversion endpoint. Ensure REACT_APP_API_BASE_URL is set (or backend is running at http://localhost:3001).";
   throw new Error(msg);
 }
