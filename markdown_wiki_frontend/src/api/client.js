@@ -14,7 +14,7 @@ const DEFAULT_TIMEOUT_MS = 30000;
 
 // PUBLIC_INTERFACE
 export function getApiBaseUrl() {
-  const raw = process.env.REACT_APP_API_BASE_URL || "http://localhost:3001";
+  const raw = process.env.REACT_APP_API_BASE || "http://localhost:3001";
   return raw.replace(/\/+$/, "");
 }
 
